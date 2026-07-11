@@ -1,0 +1,52 @@
+# ==============================================================================
+# DSA SENSEI — Requirements
+# Full local dependency set. A slimmer requirements-prod.txt (Cloud Run only,
+# excluding eval/streamlit packages that pull in heavy deps) can be split out
+# later once we deploy.
+# ==============================================================================
+
+# --- CORE API ---
+fastapi==0.136.1
+uvicorn[standard]==0.46.0
+python-dotenv==1.2.2
+requests==2.33.1
+numpy==2.4.4
+pydantic==2.13.4
+
+# --- LLM ---
+groq==0.32.0
+
+# --- VECTOR DB & RETRIEVAL ---
+qdrant-client==1.17.1
+FlashRank==0.2.10
+redis==7.4.0
+
+# --- LANGCHAIN & AGENTIC ORCHESTRATION ---
+langchain==1.2.18
+langgraph==1.1.10
+langchain-google-vertexai==3.2.3
+langchain-groq==1.1.2
+langchain-community==0.4.1
+
+# --- GUARDRAILS ---
+nemoguardrails==0.21.0
+
+# --- LLM GATEWAY ---
+portkey-ai==2.3.0
+
+# --- OBSERVABILITY ---
+langsmith==0.8.3
+logfire[fastapi,requests]==4.32.1
+loguru==0.7.3
+
+# --- INGESTION PARSERS ---
+python-pptx==1.0.2
+python-docx==1.2.0
+pypdf==6.11.0
+beautifulsoup4==4.14.3
+
+# --- UI (local dev only) ---
+streamlit==1.42.0
+
+# --- EVALUATION (local dev only) ---
+ragas==0.2.14
