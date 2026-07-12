@@ -3,6 +3,7 @@ from langgraph.graph import StateGraph, START, END
 from app.agents.state import AgentState
 from app.agents.nodes.supervisor import supervisor_node
 from app.agents.nodes.hint_node import hint_node
+from app.agents.nodes.review_node import review_node
 
 
 # Create workflow
@@ -14,6 +15,7 @@ builder = StateGraph(AgentState)
 
 builder.add_node("supervisor", supervisor_node)
 builder.add_node("hint", hint_node)
+builder.add_node("review", review_node)
 
 # --------------------------------------------------
 # Entry Point
@@ -47,5 +49,6 @@ builder.add_conditional_edges(
 # --------------------------------------------------
 
 builder.add_edge("hint", END)
+
 
 graph = builder.compile()

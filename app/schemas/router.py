@@ -8,4 +8,3 @@ class SupervisorDecision(BaseModel):
         "complexity",
         "retrieval",
         "conversation",]
-    

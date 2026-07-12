@@ -1,13 +1,11 @@
-from groq import Groq
-
+from app.gateway import get_langchain_llm
 from app.config import settings
 from app.agents.state import AgentState
 
 # Ensure the API key exists
 settings.require("GROQ_API_KEY")
 
-# Initialize Groq client
-client = Groq(api_key=settings.GROQ_API_KEY)
+llm = get_langchain_llm(feature="hint")
 
 HINT_TIERS = [
     {
