@@ -21,6 +21,18 @@ class HintResponse(BaseModel):
     response: str
     hint_level: int
 
+class ExecuteRequest(BaseModel):
+    session_id: str
+    problem_statement: str
+    user_code: str
+
+
+class ExecuteResponse(BaseModel):
+    compiled: bool
+    stdout: str
+    stderr: str
+    exit_code: int
+
 
 @app.get("/")
 def home():
@@ -50,7 +62,20 @@ def request_hint(req: HintRequest):
         return HintResponse(
             response=response,
             hint_level=sessions[req.session_id],
+        
         )
+@app.post("/execute", response_model=ExecuteResponse)
+def execute_code(req: ExecuteRequest):
+
+    with logfire.span("Execute Code"):
+
+        result = ChatService.execute_code(
+            session_id=req.session_id,
+            problem_statement=req.problem_statement,
+            user_code=req.user_code,
+        )
+
+        return ExecuteResponse(**result)
 
 
 @app.post("/reset/{session_id}")

@@ -23,3 +23,9 @@ class AgentState(TypedDict):
     next_node: str
 
     response: str
+
+    review: dict
+
+    complexity: dict
+
+    execution_result: dict
