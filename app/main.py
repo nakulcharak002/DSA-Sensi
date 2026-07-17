@@ -33,6 +33,25 @@ class ExecuteResponse(BaseModel):
     stderr: str
     exit_code: int
 
+class ReviewRequest(BaseModel):
+    session_id: str
+    problem_statement: str
+    user_code: str
+
+
+class ReviewResponse(BaseModel):
+    review: dict
+
+
+class ComplexityRequest(BaseModel):
+    session_id: str
+    problem_statement: str
+    user_code: str
+
+
+class ComplexityResponse(BaseModel):
+    complexity: dict
+
 
 @app.get("/")
 def home():
@@ -76,6 +95,32 @@ def execute_code(req: ExecuteRequest):
         )
 
         return ExecuteResponse(**result)
+
+@app.post("/review", response_model=ReviewResponse)
+def review_code(req: ReviewRequest):
+
+    with logfire.span("Review Code"):
+
+        result = ChatService.review_code(
+            session_id=req.session_id,
+            problem_statement=req.problem_statement,
+            user_code=req.user_code,
+        )
+
+        return ReviewResponse(review=result)
+    
+@app.post("/complexity", response_model=ComplexityResponse)
+def analyze_complexity(req: ComplexityRequest):
+
+    with logfire.span("Complexity Analysis"):
+
+        result = ChatService.analyze_complexity(
+            session_id=req.session_id,
+            problem_statement=req.problem_statement,
+            user_code=req.user_code,
+        )
+
+        return ComplexityResponse(complexity=result)
 
 
 @app.post("/reset/{session_id}")

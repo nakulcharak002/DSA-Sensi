@@ -1,25 +1,40 @@
-from app.agents.state import AgentState
-from app.prompts.complexity_prompt import COMPLEXITY_PROMPT
-from app.schemas.complexity import ComplexityResponse
-from app.gateway import get_langchain_llm
+import json
+import re
 
 import logfire
 
-# Initialize LLM through the gateway
+from app.agents.state import AgentState
+from app.gateway import get_langchain_llm
+from app.prompts.complexity_prompt import COMPLEXITY_PROMPT
+from app.schemas.complexity import ComplexityResponse
+
 llm = get_langchain_llm(feature="complexity")
+
+
+def extract_json(text: str) -> dict:
+    """
+    Extract JSON even if wrapped inside markdown.
+    """
+
+    text = text.strip()
+
+    # Remove ```json ... ```
+    text = re.sub(r"^```json", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"^```", "", text)
+    text = re.sub(r"```$", "", text)
+
+    start = text.find("{")
+    end = text.rfind("}")
+
+    if start == -1 or end == -1:
+        raise ValueError("No JSON object found.")
+
+    return json.loads(text[start:end + 1])
 
 
 def complexity_node(state: AgentState) -> AgentState:
     """
-    Complexity Agent
-
-    Responsibilities
-    ----------------
-    • Analyze Time Complexity
-    • Analyze Space Complexity
-    • Decide whether the solution is optimal
-    • Explain why
-    • Never reveal a better algorithm
+    Complexity Node
     """
 
     problem = state["problem_statement"]
@@ -39,10 +54,15 @@ User Code:
 
     with logfire.span("📈 Complexity Agent"):
 
-        complexity: ComplexityResponse = (
-            llm.with_structured_output(ComplexityResponse)
-            .invoke(prompt)
-        )
+        response = llm.invoke(prompt)
+
+        print("\n========== COMPLEXITY RAW RESPONSE ==========")
+        print(response.content)
+        print("=============================================\n")
+
+        data = extract_json(response.content)
+
+        complexity = ComplexityResponse.model_validate(data)
 
         logfire.info("Complexity analysis generated successfully.")
 

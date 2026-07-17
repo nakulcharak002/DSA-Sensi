@@ -1,25 +1,40 @@
-from app.agents.state import AgentState
-from app.prompts.review_prompt import REVIEW_PROMPT
-from app.schemas.review import ReviewResponse
-from app.gateway import get_langchain_llm
+import json
+import re
 
 import logfire
 
+from app.agents.state import AgentState
+from app.gateway import get_langchain_llm
+from app.prompts.review_prompt import REVIEW_PROMPT
+from app.schemas.review import ReviewResponse
+
 llm = get_langchain_llm(feature="review")
+
+
+def extract_json(text: str) -> dict:
+    """
+    Extract JSON even if wrapped inside markdown.
+    """
+
+    text = text.strip()
+
+    # Remove ```json ... ```
+    text = re.sub(r"^```json", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"^```", "", text)
+    text = re.sub(r"```$", "", text)
+
+    start = text.find("{")
+    end = text.rfind("}")
+
+    if start == -1 or end == -1:
+        raise ValueError("No JSON object found.")
+
+    return json.loads(text[start:end + 1])
 
 
 def review_node(state: AgentState) -> AgentState:
     """
     Review Node
-
-    Responsibilities:
-    -----------------
-    • Analyze the user's submitted code.
-    • Review correctness.
-    • Review bugs.
-    • Review edge cases.
-    • Analyze time & space complexity.
-    • Never reveal the optimal solution.
     """
 
     problem = state["problem_statement"]
@@ -39,10 +54,15 @@ User Code:
 
     with logfire.span("📝 Review Agent"):
 
-        review: ReviewResponse = (
-            llm.with_structured_output(ReviewResponse)
-            .invoke(prompt)
-        )
+        response = llm.invoke(prompt)
+
+        print("\n========== REVIEW RAW RESPONSE ==========")
+        print(response.content)
+        print("=========================================\n")
+
+        data = extract_json(response.content)
+
+        review = ReviewResponse.model_validate(data)
 
         logfire.info("Review generated successfully.")
 

@@ -83,3 +83,82 @@ class ChatService:
         result = graph.invoke(state)
 
         return result["execution_result"]
+    @staticmethod
+    def review_code(
+        session_id: str,
+        problem_statement: str,
+        user_code: str,
+    ):
+
+        state: AgentState = {
+            "session_id": session_id,
+
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "Please review my C++ code.",
+                }
+            ],
+
+            "problem_statement": problem_statement,
+
+            "user_code": user_code,
+
+            "request_type": "review",
+
+            "hint_level": 0,
+
+            "next_node": "",
+
+            "response": "",
+
+            "review": {},
+
+            "complexity": {},
+
+            "execution_result": {},
+        }
+
+        result = graph.invoke(state)
+
+        return result["review"]
+    @staticmethod
+    def analyze_complexity(
+        session_id: str,
+        problem_statement: str,
+        user_code: str,
+    ):
+
+        state: AgentState = {
+            "session_id": session_id,
+
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "Analyze the time and space complexity of my C++ code.",
+                }
+            ],
+
+            "problem_statement": problem_statement,
+
+            "user_code": user_code,
+
+            "request_type": "complexity",
+
+            "hint_level": 0,
+
+            "next_node": "",
+
+            "response": "",
+
+            "review": {},
+
+            "complexity": {},
+
+            "execution_result": {},
+        }
+
+        result = graph.invoke(state)
+
+        return result["complexity"]
+    
