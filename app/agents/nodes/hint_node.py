@@ -1,6 +1,7 @@
 from app.gateway import get_langchain_llm
 from app.config import settings
 from app.agents.state import AgentState
+from langchain_core.messages import SystemMessage, HumanMessage
 
 # Ensure the API key exists
 settings.require("GROQ_API_KEY")
@@ -46,28 +47,16 @@ HINT_TIERS = [
 
 
 def get_hint(problem_statement: str, tier_index: int) -> str:
-    """
-    Calls the LLM and returns a hint for the given tier.
-    """
-
     tier = HINT_TIERS[tier_index]
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {
-                "role": "system",
-                "content": tier["system_prompt"],
-            },
-            {
-                "role": "user",
-                "content": f"Problem:\n{problem_statement}",
-            },
-        ],
-        max_tokens=300,
+    response = llm.invoke(
+        [
+            SystemMessage(content=tier["system_prompt"]),
+            HumanMessage(content=f"Problem:\n{problem_statement}")
+        ]
     )
 
-    return response.choices[0].message.content
+    return response.content
 
 
 def hint_node(state: AgentState) -> AgentState:

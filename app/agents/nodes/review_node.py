@@ -3,6 +3,8 @@ import re
 
 import logfire
 
+from langchain_core.messages import SystemMessage, HumanMessage
+
 from app.agents.state import AgentState
 from app.gateway import get_langchain_llm
 from app.prompts.review_prompt import REVIEW_PROMPT
@@ -18,7 +20,6 @@ def extract_json(text: str) -> dict:
 
     text = text.strip()
 
-    # Remove ```json ... ```
     text = re.sub(r"^```json", "", text, flags=re.IGNORECASE)
     text = re.sub(r"^```", "", text)
     text = re.sub(r"```$", "", text)
@@ -33,28 +34,26 @@ def extract_json(text: str) -> dict:
 
 
 def review_node(state: AgentState) -> AgentState:
-    """
-    Review Node
-    """
 
     problem = state["problem_statement"]
     user_code = state["user_code"]
 
-    prompt = f"""
-{REVIEW_PROMPT}
+    with logfire.span("📝 Review Agent"):
 
+        response = llm.invoke(
+            [
+                SystemMessage(content=REVIEW_PROMPT),
+                HumanMessage(
+                    content=f"""
 Problem Statement:
-------------------
 {problem}
 
 User Code:
-----------
 {user_code}
 """
-
-    with logfire.span("📝 Review Agent"):
-
-        response = llm.invoke(prompt)
+                ),
+            ]
+        )
 
         print("\n========== REVIEW RAW RESPONSE ==========")
         print(response.content)

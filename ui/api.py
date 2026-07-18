@@ -4,7 +4,7 @@ Functions for communicating with the FastAPI backend.
 
 import requests
 
-from ui.constants import API_BASE_URL
+from constants import API_BASE_URL
 
 
 def post_request(endpoint: str, payload: dict) -> dict:
@@ -66,3 +66,67 @@ def get_hint(
         "/hint",
         payload,
     )
+
+
+def review_code(
+    session_id: str,
+    problem_statement: str,
+    user_code: str,
+):
+
+    payload = {
+        "session_id": session_id,
+        "problem_statement": problem_statement,
+        "user_code": user_code,
+    }
+
+    return post_request(
+        "/review",
+        payload,
+    )
+
+
+def analyze_complexity(
+    session_id: str,
+    problem_statement: str,
+    user_code: str,
+):
+
+    payload = {
+        "session_id": session_id,
+        "problem_statement": problem_statement,
+        "user_code": user_code,
+    }
+
+    return post_request(
+        "/complexity",
+        payload,
+    )
+
+def review_code(session_id: str, problem_statement: str, user_code: str):
+    payload = {
+        "session_id": session_id,
+        "problem_statement": problem_statement,
+        "user_code": user_code,
+    }
+
+    response = requests.post(
+        f"{API_BASE_URL}/review",
+        json=payload,
+    )
+
+    return response.json()
+
+def analyze_complexity(session_id: str, problem_statement: str, user_code: str):
+    payload = {
+        "session_id": session_id,
+        "problem_statement": problem_statement,
+        "user_code": user_code,
+    }
+
+    response = requests.post(
+        f"{API_BASE_URL}/complexity",
+        json=payload,
+    )
+
+    return response.json()
