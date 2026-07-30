@@ -116,3 +116,84 @@ def delete_collection():
     logfire.info(
         f"Collection '{_collection}' deleted."
     )
+
+def upsert(
+    ids: list[str],
+    vectors: list[list[float]],
+    payloads: list[dict],
+):
+    """
+    Insert or update vectors in the collection.
+    """
+
+    _init()
+
+    if not collection_exists():
+        create_collection()
+
+    if not (len(ids) == len(vectors) == len(payloads)):
+        raise ValueError(
+            "ids, vectors and payloads must have the same length."
+        )
+
+    points = [
+        PointStruct(
+            id=id_,
+            vector=vector,
+            payload=payload,
+        )
+        for id_, vector, payload in zip(ids, vectors, payloads)
+    ]
+
+    with logfire.span(
+        "Qdrant Upsert",
+        collection=_collection,
+        count=len(points),
+    ):
+        _client.upsert(
+            collection_name=_collection,
+            wait=True,
+            points=points,
+        )
+
+    logfire.info(
+        f"Successfully upserted {len(points)} vectors."
+    )
+def search(
+    query_vector: list[float],
+    limit: int = 5,
+):
+    """
+    Search similar vectors from Qdrant.
+    """
+
+    _init()
+
+    with logfire.span(
+        "Qdrant Search",
+        collection=_collection,
+        limit=limit,
+    ):
+        response = _client.query_points(
+            collection_name=_collection,
+            query=query_vector,
+            limit=limit,
+            with_payload=True,
+        )
+
+    results = []
+
+    for point in response.points:
+        results.append(
+            {
+                "id": point.id,
+                "score": point.score,
+                "payload": point.payload,
+            }
+        )
+
+    logfire.info(
+        f"Retrieved {len(results)} similar documents."
+    )
+
+    return results

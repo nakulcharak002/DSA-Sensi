@@ -38,6 +38,11 @@ def initialize_state() -> None:
 
         "complexity": "",
         "session_id": "default-session",
+
+            
+    "hint_level": 0,
+    "messages": [],
+    "retrieved_problems": [],
     }
 
     for key, value in defaults.items():
