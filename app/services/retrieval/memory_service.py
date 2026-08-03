@@ -1,68 +1,64 @@
 """
 Memory Service
 
-Stores solved DSA problems into Qdrant so they can be retrieved
-for future personalized hints.
+Stores solved DSA problems into Qdrant so they can be
+retrieved later for personalized hints.
 """
 
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import logfire
 
 from app.services.retrieval.embeddings import embed_query
+from app.services.retrieval.metadata_extractor import extract_metadata
 from app.services.retrieval.qdrant_service import upsert
 
 
-def save_problem(
-    title: str,
+def save_solved_problem(
     problem: str,
     solution: str,
-    difficulty: str,
-    topics: list[str],
+    language: str,
     hint_level: int,
     attempts: int,
+    review_score: int | None = None,
+    time_complexity: str | None = None,
+    space_complexity: str | None = None,
+    status: str = "Solved",
 ) -> str:
     """
-    Save a solved problem into Qdrant.
+    Save a solved DSA problem into Qdrant.
 
-    Args:
-        title:
-            Problem title.
-
-        problem:
-            Problem statement.
-
-        solution:
-            User's final solution or solution summary.
-
-        difficulty:
-            Easy / Medium / Hard.
-
-        topics:
-            List of DSA topics.
-
-        hint_level:
-            Highest hint tier used.
-
-        attempts:
-            Number of submissions.
-
-    Returns:
-        Generated problem ID.
+    Metadata (title, difficulty, topics) is automatically
+    extracted using the Metadata Extractor.
     """
+
+    logfire.info("Extracting problem metadata...")
+
+    metadata = extract_metadata(problem)
+
+    logfire.info(
+        f"Metadata extracted: {metadata.title}"
+    )
 
     problem_id = str(uuid4())
 
     embedding = embed_query(problem)
 
     payload = {
-        "title": title,
+        "title": metadata.title,
         "problem": problem,
         "solution": solution,
-        "difficulty": difficulty,
-        "topics": topics,
+        "difficulty": metadata.difficulty,
+        "topics": metadata.topics,
+        "language": language,
         "hint_level": hint_level,
         "attempts": attempts,
+        "review_score": review_score,
+        "time_complexity": time_complexity,
+        "space_complexity": space_complexity,
+        "status": status,
+        "created_at": datetime.now(UTC).isoformat(),
     }
 
     upsert(
@@ -72,8 +68,7 @@ def save_problem(
     )
 
     logfire.info(
-        "Saved solved problem '{}' into memory.",
-        title,
+        f"Saved '{metadata.title}' into Qdrant."
     )
 
     return problem_id
