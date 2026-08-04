@@ -12,6 +12,8 @@ class AgentState(TypedDict):
 
     messages: List[Message]
 
+    conversation_history: List[Message]
+
     problem_statement: str
 
     user_code: str
@@ -22,6 +24,8 @@ class AgentState(TypedDict):
 
     next_node: str
 
+    last_agent: str
+
     response: str
 
     review: dict
@@ -29,3 +33,5 @@ class AgentState(TypedDict):
     complexity: dict
 
     execution_result: dict
+
+    retrieved_problems: list[dict]

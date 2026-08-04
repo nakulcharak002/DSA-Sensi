@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 import logfire
+from typing import Any
 
 from app.services.chat_service import ChatService
 
@@ -51,6 +52,16 @@ class ComplexityRequest(BaseModel):
 
 class ComplexityResponse(BaseModel):
     complexity: dict
+
+class ChatRequest(BaseModel):
+    session_id: str
+    message: str
+    problem_statement: str = ""
+    user_code: str = ""
+
+
+class ChatResponse(BaseModel):
+    response: Any
 
 
 @app.get("/")
@@ -121,6 +132,22 @@ def analyze_complexity(req: ComplexityRequest):
         )
 
         return ComplexityResponse(complexity=result)
+
+@app.post("/chat", response_model=ChatResponse)
+def chat(req: ChatRequest):
+
+    with logfire.span("Supervisor Chat"):
+
+        response = ChatService.chat(
+            session_id=req.session_id,
+            message=req.message,
+            problem_statement=req.problem_statement,
+            user_code=req.user_code,
+        )
+
+        return ChatResponse(
+            response=response,
+        )
 
 
 @app.post("/reset/{session_id}")

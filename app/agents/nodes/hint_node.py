@@ -57,11 +57,19 @@ def hint_node(state: AgentState) -> AgentState:
 
     retrieval_context = build_retrieval_context(retrieved)
 
-    messages = build_hint_prompt(
+    latest_user_message = state["messages"][-1]["content"]
+
+    system_prompt, human_prompt = build_hint_prompt(
         problem_statement=state["problem_statement"],
+        latest_user_message=latest_user_message,
         retrieved_context=retrieval_context,
         hint_level=state["hint_level"],
     )
+
+    messages = [
+        ("system", system_prompt),
+        ("human", human_prompt),
+    ]
 
     response = llm.invoke(messages)
 
