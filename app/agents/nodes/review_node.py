@@ -8,6 +8,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from app.agents.state import AgentState
 from app.gateway import get_langchain_llm
 from app.prompts.review_prompt import REVIEW_PROMPT
+from app.prompts.review_chat_prompt import REVIEW_CHAT_PROMPT
 from app.schemas.review import ReviewResponse
 
 llm = get_langchain_llm(feature="review")
@@ -38,11 +39,45 @@ def review_node(state: AgentState) -> AgentState:
     problem = state["problem_statement"]
     user_code = state["user_code"]
 
+    latest_user_message = state["messages"][-1]["content"]
+
+    conversation = "\n".join(
+        f'{msg["role"].capitalize()}: {msg["content"]}'
+        for msg in state.get("conversation_history", [])[-10:]
+    )
+
+    followups = [
+        "why",
+        "explain",
+        "elaborate",
+        "what do you mean",
+        "tell me more",
+        "how",
+        "can you explain",
+        "can you elaborate",
+        "more",
+        "details",
+        "optimization",
+        "bug",
+        "logic",
+        "readability",
+        "edge case",
+    ]
+
+    latest_lower = latest_user_message.lower()
+
+    is_followup = (
+        state.get("last_agent") == "review"
+        and any(phrase in latest_lower for phrase in followups)
+    )
+
+    system_prompt = REVIEW_CHAT_PROMPT if is_followup else REVIEW_PROMPT
+
     with logfire.span("📝 Review Agent"):
 
         response = llm.invoke(
             [
-                SystemMessage(content=REVIEW_PROMPT),
+                SystemMessage(content=system_prompt),
                 HumanMessage(
                     content=f"""
 Problem Statement:
@@ -50,6 +85,12 @@ Problem Statement:
 
 User Code:
 {user_code}
+
+Latest User Message:
+{latest_user_message}
+
+Conversation History:
+{conversation}
 """
                 ),
             ]
@@ -58,6 +99,14 @@ User Code:
         print("\n========== REVIEW RAW RESPONSE ==========")
         print(response.content)
         print("=========================================\n")
+
+        if is_followup:
+
+            logfire.info("Review follow-up answered.")
+
+            state["response"] = response.content
+
+            return state
 
         data = extract_json(response.content)
 

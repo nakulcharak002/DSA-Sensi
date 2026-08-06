@@ -25,13 +25,45 @@ def supervisor_node(state: AgentState) -> AgentState:
 
     with logfire.span("🧠 Supervisor Decision"):
 
+        history = state.get("conversation_history", [])
+        last_agent = state.get("last_agent", "")
+        hint_level = state.get("hint_level", 0)
+
+        conversation = ""
+
+        for msg in history[-10:]:
+            conversation += (
+                f'{msg["role"].capitalize()}: '
+                f'{msg["content"]}\n'
+            )
+
+        human_prompt = f"""
+Current User Message:
+{latest_message}
+
+Current Problem:
+{state.get("problem_statement", "")}
+
+Current Code:
+{state.get("user_code", "")}
+
+Last Agent:
+{last_agent}
+
+Current Hint Level:
+{hint_level}
+
+Recent Conversation:
+{conversation}
+"""
+
         # Ask the LLM to choose the next agent
         decision: SupervisorDecision = (
             llm.with_structured_output(SupervisorDecision)
             .invoke(
                 [
                     ("system", SUPERVISOR_PROMPT),
-                    ("human", latest_message),
+                    ("human", human_prompt),
                 ]
             )
         )
@@ -40,7 +72,17 @@ def supervisor_node(state: AgentState) -> AgentState:
             f"Supervisor selected node: {decision.next_node}"
         )
 
+        print("=" * 50)
+        print("Message:", latest_message)
+        print("Last Agent:", last_agent)
+        print("Hint Level:", hint_level)
+        print("Decision:", decision)
+        print("=" * 50)
+
     # Update state
     state["next_node"] = decision.next_node
+
+    if decision.next_node == "hint" and getattr(decision, "increase_hint", False):
+        state["hint_level"] += 1
 
     return state
