@@ -48,6 +48,11 @@ Similarity Score:
 
 def hint_node(state: AgentState) -> AgentState:
 
+    # If the supervisor has already generated a response,
+    # don't invoke the Hint Agent.
+    if state.get("response"):
+        return state
+
     retrieved = retrieve_similar_problems(
         problem_statement=state["problem_statement"],
         limit=5,

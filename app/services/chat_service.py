@@ -2,6 +2,7 @@ from app.agents.graph import graph
 from app.agents.state import AgentState
 from typing import Any
 from app.services.conversation_service import ConversationService
+from app.guardrails.service import guard
 
 
 class ChatService:
@@ -159,6 +160,21 @@ class ChatService:
                 session_id,
                 user_code,
             )
+
+        # -----------------------------
+        # NeMo Guardrails
+        # -----------------------------
+        blocked, guard_response = guard(message)
+
+        if blocked:
+
+            ConversationService.append_message(
+                session_id,
+                "assistant",
+                guard_response,
+            )
+
+            return guard_response
 
         ConversationService.append_message(
             session_id,

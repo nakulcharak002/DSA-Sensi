@@ -1,11 +1,24 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from pydantic import BaseModel
 import logfire
 from typing import Any
 
 from app.services.chat_service import ChatService
+from app.guardrails.initializer import initialize_rails
 
-app = FastAPI(title="DSA Sensei")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    initialize_rails()
+    yield
+
+
+app = FastAPI(
+    title="DSA Sensei",
+    lifespan=lifespan,
+)
 
 logfire.configure()
 

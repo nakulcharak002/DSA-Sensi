@@ -23,6 +23,15 @@ def supervisor_node(state: AgentState) -> AgentState:
     # Get the latest user message
     latest_message = state["messages"][-1]["content"]
 
+    problem = state.get("problem_statement", "").strip()
+
+    if not problem:
+        state["next_node"] = "hint"
+        state["response"] = (
+            "Please paste the problem statement first so I can help you."
+        )
+        return state
+
     with logfire.span("🧠 Supervisor Decision"):
 
         history = state.get("conversation_history", [])

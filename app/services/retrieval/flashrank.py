@@ -9,11 +9,6 @@ from typing import Any
 
 import logfire
 from flashrank import Ranker, RerankRequest
-
-# -----------------------------------------------------------------------------
-# Lazy Initialization
-# -----------------------------------------------------------------------------
-
 _ranker: Ranker | None = None
 
 
