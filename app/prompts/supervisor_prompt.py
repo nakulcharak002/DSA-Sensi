@@ -44,6 +44,23 @@ Choose "hint" if the user:
 • asks "can you explain the hint?"
 • asks "I don't understand the hint."
 • asks "explain this hint."
+• asks for the whole solution
+• asks for the full solution
+• asks for the complete solution
+• asks "just give me the answer"
+• asks "solve it for me"
+• asks "show me the solution"
+
+Important: requests like "whole solution", "full solution", or
+"give me the answer" are asking to SEE the answer, not asking
+whether their own code is correct. These are hint escalation
+requests, NOT review requests, even though they contain the word
+"solution". Route these to "hint" with "increase_hint": true.
+
+Do not confuse this with review's "asks whether the solution is
+correct" -- that specifically means the user is asking you to
+check/validate code they already wrote, not asking you to reveal
+the answer.
 
 If the previous agent was hint and the user asks for another hint,
 set:

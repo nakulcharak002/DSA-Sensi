@@ -3,6 +3,7 @@ def build_hint_prompt(
     latest_user_message: str,
     retrieved_context: str,
     hint_level: int,
+    has_solved_before: bool = False,
 ) -> tuple[str, str]:
 
     system_prompt = """
@@ -44,6 +45,7 @@ Output Rules
 - Avoid generic advice that could apply to any DSA problem.
 - If the problem contains an array, graph, tree, linked list, string, DP state, stack, queue, or target value, refer to those concrete elements naturally.
 - Do not reveal the complete algorithm before the appropriate hint level.
+- If the learner has solved this exact problem before (see "Prior Attempt" below), you may pitch the hint slightly more efficiently, but NEVER reveal, describe, reference, or hint at their previous solution, approach, or code in any way. Treat it only as a signal they have some familiarity, not as information to repeat back.
 
 Hint Levels
 
@@ -67,6 +69,14 @@ Level 3
 - Explain time and space complexity.
 """
 
+    prior_attempt_section = (
+        "Yes, the learner has solved this exact problem before in a "
+        "previous session. Do not reveal or reference their previous "
+        "solution or code."
+        if has_solved_before
+        else "No prior recorded attempt for this problem."
+    )
+
     human_prompt = f"""
 Current Problem
 
@@ -83,6 +93,12 @@ Latest User Message
 Retrieved Context
 
 {retrieved_context}
+
+--------------------------------
+
+Prior Attempt
+
+{prior_attempt_section}
 
 --------------------------------
 

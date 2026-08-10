@@ -4,6 +4,12 @@ import tempfile
 import subprocess
 import os
 
+# The compiler binary to use. On macOS, plain "g++" is usually aliased
+# to Apple Clang, which doesn't support GCC-only headers like
+# <bits/stdc++.h>. Override via the CPP_COMPILER env var if your
+# Homebrew GCC version differs (e.g. "g++-15", "g++-17").
+CPP_COMPILER = os.environ.get("CPP_COMPILER", "g++-16")
+
 
 @mcp.tool()
 def execute_cpp(code: str, stdin: str = "") -> dict:
@@ -31,7 +37,7 @@ def execute_cpp(code: str, stdin: str = "") -> dict:
         # Compile
         compile_process = subprocess.run(
             [
-                "g++",
+                CPP_COMPILER,
                 cpp_file,
                 "-std=c++17",
                 "-o",

@@ -3,6 +3,7 @@ from app.config import settings
 from app.gateway import get_langchain_llm
 from app.prompts.hint_prompt import build_hint_prompt
 from app.services.retrieval.retriever import retrieve_similar_problems
+from app.services.retrieval.student_retriever import has_solved_before
 
 settings.require("GROQ_API_KEY")
 
@@ -64,11 +65,16 @@ def hint_node(state: AgentState) -> AgentState:
 
     latest_user_message = state["messages"][-1]["content"]
 
+    # Boolean-only signal from the student_solutions collection.
+    # Never carries the stored solution code itself.
+    solved_before = has_solved_before(state["problem_statement"])
+
     system_prompt, human_prompt = build_hint_prompt(
         problem_statement=state["problem_statement"],
         latest_user_message=latest_user_message,
         retrieved_context=retrieval_context,
         hint_level=state["hint_level"],
+        has_solved_before=solved_before,
     )
 
     messages = [
