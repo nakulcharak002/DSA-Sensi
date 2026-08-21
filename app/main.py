@@ -7,6 +7,7 @@ from typing import Any
 
 from app.services.chat_service import ChatService
 from app.guardrails.initializer import initialize_rails
+from app.routes.auth import router as auth_router
 
 
 @asynccontextmanager
@@ -19,6 +20,7 @@ app = FastAPI(
     title="DSA Sensei",
     lifespan=lifespan,
 )
+app.include_router(auth_router)
 
 logfire.configure()
 

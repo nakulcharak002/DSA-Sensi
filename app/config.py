@@ -18,6 +18,8 @@ class Settings:
     LANGSMITH_PROJECT: str = os.environ.get("LANGSMITH_PROJECT", "dsa-sensei")
     JUDGE_GROQ: str = os.environ.get("JUDGE_GROQ", "")
     BACKEND_URL: str = os.environ.get("BACKEND_URL", "http://localhost:8000")
+    DATABASE_URL: str = os.environ.get("DATABASE_URL", "")
+    JWT_SECRET_KEY: str = os.environ.get("JWT_SECRET_KEY", "")
 
     def require(self, *names: str) -> None:
         missing = [n for n in names if not getattr(self, n, None)]

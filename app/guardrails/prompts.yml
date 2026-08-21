@@ -1,5 +1,6 @@
 prompts:
   - task: self_check_input
+    max_tokens: 100
     content: |
       You are checking whether a message should be allowed into DSA Sensei,
       an AI tutor for Data Structures, Algorithms, and Competitive Programming.
@@ -53,6 +54,7 @@ prompts:
       No
 
   - task: self_check_output
+    max_tokens: 100
     content: |
       Check whether this assistant response:
 
