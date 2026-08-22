@@ -47,11 +47,17 @@ class ConversationRepository:
 
         statement = (
             select(Conversation)
-            .where(Conversation.user_id == user_id)
-            .order_by(Conversation.updated_at.desc())
+            .where(
+                Conversation.user_id == user_id
+            )
+            .order_by(
+                Conversation.updated_at.desc()
+            )
         )
 
-        return list(db.scalars(statement).all())
+        return list(
+            db.scalars(statement).all()
+        )
 
     @staticmethod
     def update_problem(
@@ -61,6 +67,21 @@ class ConversationRepository:
     ) -> Conversation:
 
         conversation.problem_statement = problem_statement
+
+        db.commit()
+        db.refresh(conversation)
+
+        return conversation
+
+    # NEW
+    @staticmethod
+    def update_code(
+        db: Session,
+        conversation: Conversation,
+        user_code: str,
+    ) -> Conversation:
+
+        conversation.user_code = user_code
 
         db.commit()
         db.refresh(conversation)
@@ -95,11 +116,17 @@ class ConversationRepository:
 
         statement = (
             select(Message)
-            .where(Message.session_id == session_id)
-            .order_by(Message.created_at.asc())
+            .where(
+                Message.session_id == session_id
+            )
+            .order_by(
+                Message.created_at.asc()
+            )
         )
 
-        return list(db.scalars(statement).all())
+        return list(
+            db.scalars(statement).all()
+        )
 
     @staticmethod
     def delete_session(

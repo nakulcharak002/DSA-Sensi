@@ -61,6 +61,11 @@ class Session(Base):
         nullable=True,
     )
 
+    user_code: Mapped[str] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=datetime.utcnow,
