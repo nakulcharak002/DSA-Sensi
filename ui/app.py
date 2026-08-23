@@ -14,6 +14,69 @@ from api import (
     delete_session,
 )
 from auth_page import render_auth_page
+from styles import get_custom_css
+
+
+def format_ai_result(result) -> str:
+    """
+    Convert a chat response (str or structured dict from
+    review/complexity/execute) into a single markdown string
+    suitable for chat history display.
+    """
+    if isinstance(result, dict):
+
+        if "score" in result:
+            lines = [f"**⭐ Score:** {result.get('score', 'N/A')}"]
+            lines.append(f"\n**🧠 Logic**\n{result.get('logic', '')}")
+            bugs = result.get("bugs", [])
+            lines.append("\n**🐞 Bugs**")
+            lines.append(
+                "\n".join(f"- {b}" for b in bugs) if bugs else "No bugs found."
+            )
+            edges = result.get("edge_cases", [])
+            if edges:
+                lines.append("\n**⚠ Edge Cases**")
+                lines.append("\n".join(f"- {e}" for e in edges))
+            if result.get("readability"):
+                lines.append(f"\n**📖 Readability**\n{result.get('readability')}")
+            opt = result.get("optimization", [])
+            if opt:
+                lines.append("\n**🚀 Optimization**")
+                lines.append("\n".join(f"- {o}" for o in opt))
+            return "\n".join(lines)
+
+        if "time_complexity" in result:
+            lines = [
+                f"**Time Complexity:** {result.get('time_complexity', 'N/A')}",
+                f"**Space Complexity:** {result.get('space_complexity', 'N/A')}",
+            ]
+            lines.append(
+                "✅ Optimal Solution"
+                if result.get("optimal")
+                else "⚠ Better Solution Possible"
+            )
+            if result.get("explanation"):
+                lines.append(f"\n**📚 Explanation**\n{result.get('explanation')}")
+            if result.get("better_approach"):
+                lines.append(f"\n**🚀 Better Approach**\n{result.get('better_approach')}")
+            return "\n".join(lines)
+
+        if "compiled" in result:
+            lines = [
+                "✅ Code Compiled Successfully"
+                if result.get("compiled")
+                else "❌ Compilation Failed"
+            ]
+            lines.append(f"\n**Output**\n```\n{result.get('stdout', '')}\n```")
+            if result.get("stderr"):
+                lines.append(f"\n**Errors**\n```\n{result.get('stderr')}\n```")
+            lines.append(f"\nExit Code: {result.get('exit_code', 0)}")
+            return "\n".join(lines)
+
+        return f"```json\n{result}\n```"
+
+    return str(result)
+
 
 st.set_page_config(
     page_title="DSA Sensei",
@@ -29,27 +92,7 @@ if "access_token" not in st.session_state:
 
 # ---------------- CSS ----------------
 
-st.markdown("""
-<style>
-
-.block-container{
-    padding-top:1rem;
-    padding-bottom:1rem;
-}
-
-.stButton>button{
-    width:100%;
-    height:45px;
-    border-radius:10px;
-    font-weight:600;
-}
-
-textarea{
-    border-radius:10px;
-}
-
-</style>
-""", unsafe_allow_html=True)
+st.markdown(get_custom_css(), unsafe_allow_html=True)
 
 # ---------------- Session ----------------
 
@@ -59,6 +102,9 @@ if "session_id" not in st.session_state:
         st.error(f"Failed to create session: {session_data.get('message')}")
         st.stop()
     st.session_state.session_id = session_data["session_id"]
+
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
 # ---------------- Sidebar ----------------
 
@@ -82,18 +128,10 @@ with st.sidebar:
             st.error(f"Failed to create session: {session_data.get('message')}")
         else:
             st.session_state.session_id = session_data["session_id"]
+            st.session_state.messages = []
+            st.session_state.loaded_problem = ""
+            st.session_state.loaded_code = ""
             st.rerun()
-
-    st.divider()
-
-    st.markdown("### 🚀 Features")
-
-    st.success("🤖 Supervisor")
-    st.success("💡 Hint Agent")
-    st.success("📝 Review Agent")
-    st.success("▶ Execution Agent")
-    st.success("📈 Complexity Agent")
-    st.success("📚 RAG Enabled")
 
     st.divider()
 
@@ -124,6 +162,10 @@ with st.sidebar:
                             st.session_state.session_id = detail["session_id"]
                             st.session_state.loaded_problem = detail.get("problem_statement") or ""
                             st.session_state.loaded_code = detail.get("user_code") or ""
+                            st.session_state.messages = [
+                                {"role": m["role"], "content": m["content"]}
+                                for m in detail.get("messages", [])
+                            ]
                             st.rerun()
                         else:
                             st.error(f"Couldn't load session: {detail_resp.get('message')}")
@@ -134,16 +176,28 @@ with st.sidebar:
                         if del_resp.get("success", True):
                             if s["session_id"] == st.session_state.session_id:
                                 st.session_state.pop("session_id", None)
+                                st.session_state.messages = []
                             st.rerun()
                         else:
                             st.error(f"Couldn't delete session: {del_resp.get('message')}")
 
     st.divider()
 
+    st.markdown("### 🚀 Features")
+
+    st.success("🤖 Supervisor")
+    st.success("💡 Hint Agent")
+    st.success("📝 Review Agent")
+    st.success("▶ Execution Agent")
+    st.success("📈 Complexity Agent")
+    st.success("📚 RAG Enabled")
+
+    st.divider()
+
     st.markdown("### Account")
 
     if st.button("🚪 Logout"):
-        for key in ("access_token", "user_id"):
+        for key in ("access_token", "user_id", "messages", "session_id", "loaded_problem", "loaded_code"):
             st.session_state.pop(key, None)
         st.rerun()
 
@@ -204,9 +258,15 @@ st.divider()
 
 st.subheader("💬 Ask DSA Sensei")
 
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
+
 message = st.chat_input("Ask DSA Sensei...")
 
 if message and message.strip():
+
+    st.session_state.messages.append({"role": "user", "content": message})
 
     with st.spinner("Thinking..."):
 
@@ -217,80 +277,14 @@ if message and message.strip():
             user_code=code,
         )
 
-    st.subheader("🤖 AI Response")
-
-    result = response["response"]
-
-    if isinstance(result, dict):
-
-        # Review
-        if "score" in result:
-            st.success(f"⭐ Score : {result.get('score', 'N/A')}")
-
-            with st.expander("🧠 Logic", expanded=True):
-                st.write(result.get("logic", ""))
-
-            with st.expander("🐞 Bugs", expanded=True):
-                bugs = result.get("bugs", [])
-                if bugs:
-                    for bug in bugs:
-                        st.write(f"• {bug}")
-                else:
-                    st.success("No bugs found.")
-
-            with st.expander("⚠ Edge Cases"):
-                for edge in result.get("edge_cases", []):
-                    st.write(f"• {edge}")
-
-            with st.expander("📖 Readability"):
-                st.write(result.get("readability", ""))
-
-            with st.expander("🚀 Optimization"):
-                for item in result.get("optimization", []):
-                    st.write(f"• {item}")
-
-        # Complexity
-        elif "time_complexity" in result:
-            c1, c2 = st.columns(2)
-
-            with c1:
-                st.metric("Time Complexity", result.get("time_complexity", "N/A"))
-
-            with c2:
-                st.metric("Space Complexity", result.get("space_complexity", "N/A"))
-
-            if result.get("optimal"):
-                st.success("✅ Optimal Solution")
-            else:
-                st.warning("⚠ Better Solution Possible")
-
-            with st.expander("📚 Explanation", expanded=True):
-                st.write(result.get("explanation", ""))
-
-            with st.expander("🚀 Better Approach"):
-                st.write(result.get("better_approach", ""))
-
-        # Execute
-        elif "compiled" in result:
-            if result.get("compiled"):
-                st.success("✅ Code Compiled Successfully")
-            else:
-                st.error("❌ Compilation Failed")
-
-            st.markdown("### Output")
-            st.code(result.get("stdout", ""))
-
-            if result.get("stderr"):
-                st.markdown("### Errors")
-                st.code(result.get("stderr"))
-
-            st.metric("Exit Code", result.get("exit_code", 0))
-
-        else:
-            st.json(result)
-
+    if not response.get("success", True):
+        reply_text = f"⚠️ Request failed: {response.get('message', 'Unknown error')}"
     else:
-        st.success(result)
+        reply_text = format_ai_result(response["response"])
+
+    st.session_state.messages.append({"role": "assistant", "content": reply_text})
+
+    st.rerun()
 
 st.divider()
 
@@ -313,13 +307,16 @@ with col1:
                     problem_statement=problem,
                 )
 
-            st.divider()
+            if not response.get("success", True):
+                st.error(f"Request failed: {response.get('message', 'Unknown error')}")
+            else:
+                st.divider()
 
-            st.subheader("💡 Hint")
+                st.subheader("💡 Hint")
 
-            st.success(response["response"])
+                st.success(response["response"])
 
-            st.caption(f"Hint Level : {response['hint_level']}")
+                st.caption(f"Hint Level : {response['hint_level']}")
 
 # ----------------------------------------------------
 
@@ -345,31 +342,38 @@ with col2:
                     user_code=code,
                 )
 
-            review = response["review"]
+            if not response.get("success", True):
+                st.error(f"Request failed: {response.get('message', 'Unknown error')}")
+            else:
+                review = response["review"]
 
-            st.divider()
+                st.divider()
 
-            st.subheader("📝 Code Review")
+                st.subheader("📝 Code Review")
 
-            st.success(f"⭐ Score : {review['score']}")
+                st.success(f"⭐ Score : {review.get('score', 'N/A')}")
 
-            with st.expander("🧠 Logic", expanded=True):
-                st.write(review["logic"])
+                with st.expander("🧠 Logic", expanded=True):
+                    st.write(review.get("logic", ""))
 
-            with st.expander("🐞 Bugs", expanded=True):
-                for bug in review["bugs"]:
-                    st.write(f"• {bug}")
+                with st.expander("🐞 Bugs", expanded=True):
+                    bugs = review.get("bugs", [])
+                    if bugs:
+                        for bug in bugs:
+                            st.write(f"• {bug}")
+                    else:
+                        st.success("No bugs found.")
 
-            with st.expander("⚠ Edge Cases"):
-                for edge in review["edge_cases"]:
-                    st.write(f"• {edge}")
+                with st.expander("⚠ Edge Cases"):
+                    for edge in review.get("edge_cases", []):
+                        st.write(f"• {edge}")
 
-            with st.expander("📖 Readability"):
-                st.write(review["readability"])
+                with st.expander("📖 Readability"):
+                    st.write(review.get("readability", ""))
 
-            with st.expander("🚀 Optimization"):
-                for item in review["optimization"]:
-                    st.write(f"• {item}")
+                with st.expander("🚀 Optimization"):
+                    for item in review.get("optimization", []):
+                        st.write(f"• {item}")
 
 # ----------------------------------------------------
 
@@ -395,32 +399,35 @@ with col3:
                     user_code=code,
                 )
 
-            st.divider()
-
-            st.subheader("▶ Execution Result")
-
-            if response["compiled"]:
-
-                st.success("✅ Code Compiled Successfully")
-
+            if not response.get("success", True):
+                st.error(f"Request failed: {response.get('message', 'Unknown error')}")
             else:
+                st.divider()
 
-                st.error("❌ Compilation Failed")
+                st.subheader("▶ Execution Result")
 
-            st.markdown("### Output")
+                if response["compiled"]:
 
-            st.code(response["stdout"])
+                    st.success("✅ Code Compiled Successfully")
 
-            if response["stderr"]:
+                else:
 
-                st.markdown("### Errors")
+                    st.error("❌ Compilation Failed")
 
-                st.code(response["stderr"])
+                st.markdown("### Output")
 
-            st.metric(
-                "Exit Code",
-                response["exit_code"],
-            )
+                st.code(response["stdout"])
+
+                if response["stderr"]:
+
+                    st.markdown("### Errors")
+
+                    st.code(response["stderr"])
+
+                st.metric(
+                    "Exit Code",
+                    response["exit_code"],
+                )
 
 # ----------------------------------------------------
 
@@ -446,42 +453,43 @@ with col4:
                     user_code=code,
                 )
 
-            complexity = response["complexity"]
-
-            st.divider()
-
-            st.subheader("📈 Complexity Analysis")
-
-            if not complexity:
-                st.warning("No complexity data returned.")
-                st.json(response)
+            if not response.get("success", True):
+                st.error(f"Request failed: {response.get('message', 'Unknown error')}")
             else:
-                st.json(complexity)
+                complexity = response["complexity"]
 
-                c1, c2 = st.columns(2)
+                st.divider()
 
-                with c1:
-                    st.metric(
-                        "Time Complexity",
-                        complexity.get("time_complexity", "N/A"),
-                    )
+                st.subheader("📈 Complexity Analysis")
 
-                with c2:
-                    st.metric(
-                        "Space Complexity",
-                        complexity.get("space_complexity", "N/A"),
-                    )
-
-                if complexity.get("optimal"):
-
-                    st.success("✅ Optimal Solution")
-
+                if not complexity:
+                    st.warning("No complexity data returned.")
+                    st.json(response)
                 else:
+                    c1, c2 = st.columns(2)
 
-                    st.warning("⚠ Better Solution Possible")
+                    with c1:
+                        st.metric(
+                            "Time Complexity",
+                            complexity.get("time_complexity", "N/A"),
+                        )
 
-                with st.expander("📚 Explanation", expanded=True):
-                    st.write(complexity.get("explanation", ""))
+                    with c2:
+                        st.metric(
+                            "Space Complexity",
+                            complexity.get("space_complexity", "N/A"),
+                        )
 
-                with st.expander("🚀 Better Approach"):
-                    st.write(complexity.get("better_approach", ""))
+                    if complexity.get("optimal"):
+
+                        st.success("✅ Optimal Solution")
+
+                    else:
+
+                        st.warning("⚠ Better Solution Possible")
+
+                    with st.expander("📚 Explanation", expanded=True):
+                        st.write(complexity.get("explanation", ""))
+
+                    with st.expander("🚀 Better Approach"):
+                        st.write(complexity.get("better_approach", ""))

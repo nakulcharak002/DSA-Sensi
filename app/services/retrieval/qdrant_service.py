@@ -5,28 +5,20 @@ from qdrant_client.http.models import (
     Distance,
     VectorParams,
     PointStruct,
+    Filter,
+    FieldCondition,
+    MatchValue,
 )
 
 from app.config import settings
 from app.services.retrieval.embeddings import get_embedding_dim
 
-# -----------------------------------------------------------------------------
-# Globals
-# -----------------------------------------------------------------------------
-
 _client = None
 _collection = None
 _student_collection = None
 
-# -----------------------------------------------------------------------------
-# Initialization
-# -----------------------------------------------------------------------------
 
 def _init():
-    """
-    Initialize the Qdrant client once.
-    """
-
     global _client
     global _collection
     global _student_collection
@@ -50,10 +42,6 @@ def _init():
         "dsa_problems",
     )
 
-    # Separate collection for student-solved solutions.
-    # Kept apart from `_collection` (the curated reference problems)
-    # so hint retrieval never accidentally surfaces raw student code
-    # as "similar context" -> prevents solution leakage.
     _student_collection = getattr(
         settings,
         "QDRANT_STUDENT_COLLECTION",
@@ -64,16 +52,10 @@ def _init():
         f"Connected to Qdrant collection '{_collection}'."
     )
 
-# -----------------------------------------------------------------------------
-# Collection (generic helpers, operate on a given collection name)
-# -----------------------------------------------------------------------------
 
 def _collection_exists(collection_name: str) -> bool:
-
     _init()
-
     collections = _client.get_collections()
-
     return any(
         c.name == collection_name
         for c in collections.collections
@@ -81,7 +63,6 @@ def _collection_exists(collection_name: str) -> bool:
 
 
 def _create_collection(collection_name: str):
-
     _init()
 
     if _collection_exists(collection_name):
@@ -109,7 +90,6 @@ def _upsert_to(
     vectors: list[list[float]],
     payloads: list[dict],
 ):
-
     _init()
 
     if not _collection_exists(collection_name):
@@ -144,35 +124,18 @@ def _upsert_to(
         f"Successfully upserted {len(points)} vectors into '{collection_name}'."
     )
 
-# -----------------------------------------------------------------------------
-# Public API - reference problems collection (unchanged behavior)
-# -----------------------------------------------------------------------------
 
 def collection_exists() -> bool:
-    """
-    Returns True if the reference-problems collection already exists.
-    """
-
     _init()
-
     return _collection_exists(_collection)
 
 
 def create_collection():
-    """
-    Creates the reference-problems collection if it does not already exist.
-    """
-
     _init()
-
     _create_collection(_collection)
 
 
 def delete_collection():
-    """
-    Delete the reference-problems collection.
-    """
-
     _init()
 
     if not _collection_exists(_collection):
@@ -192,12 +155,7 @@ def upsert(
     vectors: list[list[float]],
     payloads: list[dict],
 ):
-    """
-    Insert or update vectors in the reference-problems collection.
-    """
-
     _init()
-
     _upsert_to(_collection, ids, vectors, payloads)
 
 
@@ -205,12 +163,6 @@ def search(
     query_vector: list[float],
     limit: int = 5,
 ):
-    """
-    Search similar vectors from the reference-problems collection ONLY.
-    Student-solved solutions live in a separate collection and are
-    never returned here, so hint retrieval can't leak solution code.
-    """
-
     _init()
 
     with logfire.span(
@@ -242,25 +194,25 @@ def search(
 
     return results
 
-# -----------------------------------------------------------------------------
-# Public API - student-solved-solutions collection
-# -----------------------------------------------------------------------------
 
 def search_student_solutions(
     query_vector: list[float],
+    user_id: str,
     limit: int = 1,
 ):
-    """
-    Search the student_solutions collection ONLY.
-    Used to detect "has this student solved this problem before",
-    never to pull solution_code into hint context.
-    """
-
     _init()
 
     if not _collection_exists(_student_collection):
-        # No student has solved anything yet -> nothing to find.
         return []
+
+    query_filter = Filter(
+        must=[
+            FieldCondition(
+                key="user_id",
+                match=MatchValue(value=user_id),
+            )
+        ]
+    )
 
     with logfire.span(
         "Qdrant Search",
@@ -270,6 +222,7 @@ def search_student_solutions(
         response = _client.query_points(
             collection_name=_student_collection,
             query=query_vector,
+            query_filter=query_filter,
             limit=limit,
             with_payload=True,
         )
@@ -292,14 +245,8 @@ def store_solved_problem(
     problem_statement: str,
     solution_code: str,
     execution_result: dict,
+    user_id: str,
 ):
-    """
-    Store a successfully solved problem in its own Qdrant collection
-    (kept separate from the reference-problems collection used by
-    hint retrieval, to avoid ever surfacing raw student solution
-    code as retrieval context).
-    """
-
     from uuid import uuid4
     from app.services.retrieval.embeddings import embed_query
 
@@ -317,6 +264,7 @@ def store_solved_problem(
         "solution_code": solution_code,
         "execution_result": execution_result,
         "type": "student_solved_problem",
+        "user_id": user_id,
     }
 
     _upsert_to(

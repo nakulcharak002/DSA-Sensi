@@ -9,6 +9,7 @@ class Message(TypedDict):
 class AgentState(TypedDict):
 
     session_id: str
+    user_id: str
 
     messages: list[Message]
 

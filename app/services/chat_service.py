@@ -36,6 +36,7 @@ class ChatService:
 
         state: AgentState = {
             "session_id": session_id,
+            "user_id": user_id,
 
             "messages": [
                 {
@@ -118,6 +119,7 @@ class ChatService:
 
         state: AgentState = {
             "session_id": session_id,
+            "user_id": user_id,
 
             "messages": [
                 {
@@ -200,6 +202,7 @@ class ChatService:
 
         state: AgentState = {
             "session_id": session_id,
+            "user_id": user_id,
 
             "messages": [
                 {
@@ -282,6 +285,7 @@ class ChatService:
 
         state: AgentState = {
             "session_id": session_id,
+            "user_id": user_id,
 
             "messages": [
                 {
@@ -442,6 +446,7 @@ class ChatService:
 
         state: AgentState = {
             "session_id": session_id,
+            "user_id": user_id,
 
             "messages": [
                 {

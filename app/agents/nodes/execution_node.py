@@ -1,19 +1,12 @@
 from app.agents.state import AgentState
 from app.mcp.client import MCPClient
 from app.services.retrieval.qdrant_service import store_solved_problem
-
 import asyncio
 
 
 def execution_node(state: AgentState) -> AgentState:
-    """
-    Executes the user's C++ code through the MCP server.
-
-    If execution succeeds, store the solved problem
-    in the student_solutions Qdrant collection.
-    """
-
     client = MCPClient()
+
     result = asyncio.run(
         client.execute_cpp(
             code=state["user_code"],
@@ -23,7 +16,6 @@ def execution_node(state: AgentState) -> AgentState:
 
     state["execution_result"] = result
 
-    # Store only successfully executed solutions.
     if (
         result.get("compiled") is True
         and result.get("exit_code") == 0
@@ -33,6 +25,7 @@ def execution_node(state: AgentState) -> AgentState:
             problem_statement=state["problem_statement"],
             solution_code=state["user_code"],
             execution_result=result,
+            user_id=state["user_id"],
         )
 
     return state

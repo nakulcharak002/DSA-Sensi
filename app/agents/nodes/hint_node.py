@@ -10,37 +10,26 @@ settings.require("GROQ_API_KEY")
 llm = get_langchain_llm(feature="hint")
 
 
-def build_retrieval_context(
-    retrieved_problems: list[dict],
-) -> str:
-
+def build_retrieval_context(retrieved_problems: list[dict]) -> str:
     if not retrieved_problems:
         return "No similar problems found."
 
     context = ""
 
     for idx, result in enumerate(retrieved_problems, start=1):
-
         payload = result.get("payload", {})
-
         context += f"""
 Problem {idx}
-
 Title:
 {payload.get("title", "Unknown")}
-
 Difficulty:
 {payload.get("difficulty", "Unknown")}
-
 Topics:
 {", ".join(payload.get("topics", []))}
-
 Summary:
 {payload.get("problem", "")}
-
 Similarity Score:
 {result.get("rerank_score", result.get("score", 0))}
-
 ----------------------------------------
 """
 
@@ -48,9 +37,6 @@ Similarity Score:
 
 
 def hint_node(state: AgentState) -> AgentState:
-
-    # If the supervisor has already generated a response,
-    # don't invoke the Hint Agent.
     if state.get("response"):
         return state
 
@@ -65,9 +51,10 @@ def hint_node(state: AgentState) -> AgentState:
 
     latest_user_message = state["messages"][-1]["content"]
 
-    # Boolean-only signal from the student_solutions collection.
-    # Never carries the stored solution code itself.
-    solved_before = has_solved_before(state["problem_statement"])
+    solved_before = has_solved_before(
+        state["problem_statement"],
+        state["user_id"],
+    )
 
     system_prompt, human_prompt = build_hint_prompt(
         problem_statement=state["problem_statement"],
