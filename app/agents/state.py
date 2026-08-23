@@ -1,4 +1,4 @@
-from typing import TypedDict, List, Literal
+from typing import TypedDict, Literal
 
 
 class Message(TypedDict):
@@ -10,9 +10,9 @@ class AgentState(TypedDict):
 
     session_id: str
 
-    messages: List[Message]
+    messages: list[Message]
 
-    conversation_history: List[Message]
+    conversation_history: list[Message]
 
     problem_statement: str
 
@@ -25,6 +25,7 @@ class AgentState(TypedDict):
     next_node: str
 
     last_agent: str
+    previous_agent: str
 
     response: str
 

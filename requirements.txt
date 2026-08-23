@@ -50,3 +50,6 @@ streamlit==1.42.0
 
 # --- EVALUATION (local dev only) ---
 ragas==0.2.14
+psycopg[binary]
+pydantic[email]
+mcp<2.0.0

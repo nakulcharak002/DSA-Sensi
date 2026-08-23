@@ -25,3 +25,9 @@ build/
 
 # LangSmith / Logfire
 .langsmith/
+venv311/
+venv/
+.env
+__pycache__/
+*.pyc
+.streamlit/secrets.toml

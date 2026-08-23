@@ -43,7 +43,7 @@ def complexity_node(state: AgentState) -> AgentState:
         for msg in state.get("conversation_history", [])[-10:]
     )
 
-    is_followup = state.get("last_agent") == "complexity"
+    is_followup = state.get("previous_agent") == "complexity"
 
     system_prompt = (
         COMPLEXITY_CHAT_PROMPT

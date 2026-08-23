@@ -8,13 +8,24 @@ from api import (
     execute_code,
     analyze_complexity,
     chat,
+    create_session,
+    get_sessions,
+    get_session,
+    delete_session,
 )
+from auth_page import render_auth_page
 
 st.set_page_config(
     page_title="DSA Sensei",
     page_icon="🧠",
     layout="wide",
 )
+
+# ---------------- Auth Gate ----------------
+
+if "access_token" not in st.session_state:
+    render_auth_page()
+    st.stop()
 
 # ---------------- CSS ----------------
 
@@ -43,7 +54,11 @@ textarea{
 # ---------------- Session ----------------
 
 if "session_id" not in st.session_state:
-    st.session_state.session_id = str(uuid.uuid4())
+    session_data = create_session()
+    if not session_data.get("success", True):
+        st.error(f"Failed to create session: {session_data.get('message')}")
+        st.stop()
+    st.session_state.session_id = session_data["session_id"]
 
 # ---------------- Sidebar ----------------
 
@@ -62,8 +77,12 @@ with st.sidebar:
     st.code(st.session_state.session_id[:8])
 
     if st.button("🔄 New Session"):
-        st.session_state.session_id = str(uuid.uuid4())
-        st.rerun()
+        session_data = create_session()
+        if not session_data.get("success", True):
+            st.error(f"Failed to create session: {session_data.get('message')}")
+        else:
+            st.session_state.session_id = session_data["session_id"]
+            st.rerun()
 
     st.divider()
 
@@ -75,6 +94,58 @@ with st.sidebar:
     st.success("▶ Execution Agent")
     st.success("📈 Complexity Agent")
     st.success("📚 RAG Enabled")
+
+    st.divider()
+
+    st.markdown("### 🕘 History")
+
+    sessions_resp = get_sessions()
+
+    if not sessions_resp.get("success", True):
+        st.caption("Couldn't load history.")
+    else:
+        past_sessions = sessions_resp["data"]
+
+        if not past_sessions:
+            st.caption("No past sessions yet.")
+        else:
+            for s in past_sessions:
+                label = (s.get("problem_statement") or "Untitled")[:30]
+                is_current = s["session_id"] == st.session_state.session_id
+
+                hcol1, hcol2 = st.columns([4, 1])
+
+                with hcol1:
+                    button_label = f"{'▶ ' if is_current else ''}{label}"
+                    if st.button(button_label, key=f"load_{s['session_id']}"):
+                        detail_resp = get_session(s["session_id"])
+                        if detail_resp.get("success", True):
+                            detail = detail_resp["data"]
+                            st.session_state.session_id = detail["session_id"]
+                            st.session_state.loaded_problem = detail.get("problem_statement") or ""
+                            st.session_state.loaded_code = detail.get("user_code") or ""
+                            st.rerun()
+                        else:
+                            st.error(f"Couldn't load session: {detail_resp.get('message')}")
+
+                with hcol2:
+                    if st.button("🗑", key=f"del_{s['session_id']}"):
+                        del_resp = delete_session(s["session_id"])
+                        if del_resp.get("success", True):
+                            if s["session_id"] == st.session_state.session_id:
+                                st.session_state.pop("session_id", None)
+                            st.rerun()
+                        else:
+                            st.error(f"Couldn't delete session: {del_resp.get('message')}")
+
+    st.divider()
+
+    st.markdown("### Account")
+
+    if st.button("🚪 Logout"):
+        for key in ("access_token", "user_id"):
+            st.session_state.pop(key, None)
+        st.rerun()
 
 # ---------------- Header ----------------
 
@@ -92,6 +163,7 @@ with left:
 
     problem = st.text_area(
         "📄 Problem Statement",
+        value=st.session_state.get("loaded_problem", ""),
         height=220,
         placeholder="Paste the LeetCode / Codeforces problem here...",
     )
@@ -99,12 +171,13 @@ with left:
     st.subheader("💻 Your Code")
 
     code = st_ace(
+        value=st.session_state.get("loaded_code", ""),
         language="c_cpp",
         theme="monokai",
         height=450,
         auto_update=True,
         font_size=15,
-        key="cpp_editor",
+        key=f"cpp_editor_{st.session_state.session_id}",
     )
 
 with right:
@@ -379,30 +452,36 @@ with col4:
 
             st.subheader("📈 Complexity Analysis")
 
-            c1, c2 = st.columns(2)
-
-            with c1:
-                st.metric(
-                    "Time Complexity",
-                    complexity["time_complexity"],
-                )
-
-            with c2:
-                st.metric(
-                    "Space Complexity",
-                    complexity["space_complexity"],
-                )
-
-            if complexity["optimal"]:
-
-                st.success("✅ Optimal Solution")
-
+            if not complexity:
+                st.warning("No complexity data returned.")
+                st.json(response)
             else:
+                st.json(complexity)
 
-                st.warning("⚠ Better Solution Possible")
+                c1, c2 = st.columns(2)
 
-            with st.expander("📚 Explanation", expanded=True):
-                st.write(complexity["explanation"])
+                with c1:
+                    st.metric(
+                        "Time Complexity",
+                        complexity.get("time_complexity", "N/A"),
+                    )
 
-            with st.expander("🚀 Better Approach"):
-                st.write(complexity["better_approach"])
+                with c2:
+                    st.metric(
+                        "Space Complexity",
+                        complexity.get("space_complexity", "N/A"),
+                    )
+
+                if complexity.get("optimal"):
+
+                    st.success("✅ Optimal Solution")
+
+                else:
+
+                    st.warning("⚠ Better Solution Possible")
+
+                with st.expander("📚 Explanation", expanded=True):
+                    st.write(complexity.get("explanation", ""))
+
+                with st.expander("🚀 Better Approach"):
+                    st.write(complexity.get("better_approach", ""))

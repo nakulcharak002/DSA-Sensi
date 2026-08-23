@@ -67,7 +67,7 @@ def review_node(state: AgentState) -> AgentState:
     latest_lower = latest_user_message.lower()
 
     is_followup = (
-        state.get("last_agent") == "review"
+        state.get("previous_agent") == "review"
         and any(phrase in latest_lower for phrase in followups)
     )
 
